@@ -1,0 +1,8 @@
+
+{
+  "name": "Funly - Elementary Math Solver",
+  "description": "A playful web app that breaks down elementary math problems into three easy-to-understand illustrated steps.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
