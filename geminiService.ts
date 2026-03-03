@@ -1,10 +1,9 @@
 import { MathProblemResult } from "./types";
 
 const QWEN_API_KEY = 'sk-b58ad18245ed452a9b658cd82c532b78';
+const DOUBAO_API_KEY = '55775bf1-6018-47cb-a0af-f32c820f57cd';
 
 export async function analyzeMathProblem(base64Image: string): Promise<MathProblemResult> {
-  console.log('Starting analyzeMathProblem...');
-  
   const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -52,9 +51,7 @@ export async function analyzeMathProblem(base64Image: string): Promise<MathProbl
     })
   });
 
-  console.log('Response status:', response.status);
   const data = await response.json();
-  console.log('Response data:', data);
   const textContent = data.choices?.[0]?.message?.content || '';
   
   const jsonMatch = textContent.match(/\{[\s\S]*\}/);
@@ -69,62 +66,30 @@ export async function analyzeMathProblem(base64Image: string): Promise<MathProbl
   };
 }
 
-async function waitForTaskComplete(taskId: string): Promise<string> {
-  const maxAttempts = 60;
-  let attempts = 0;
-  
-  while (attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const response = await fetch(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${QWEN_API_KEY}`
-      }
-    });
-    
-    const data = await response.json();
-    const status = data.output?.task_status;
-    
-    if (status === 'SUCCEEDED') {
-      return data.output.results[0].url;
-    } else if (status === 'FAILED') {
-      throw new Error(data.output?.message || 'Image generation failed');
-    }
-    
-    attempts++;
-  }
-  
-  throw new Error('Image generation timeout');
-}
-
 export async function generateStepImage(prompt: string): Promise<string> {
-  const createResponse = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis', {
+  const response = await fetch('https://ark.cn-beijing.volces.com/api/v3/images/generations', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${QWEN_API_KEY}`,
-      'X-DashScope-Async': 'enable'
+      'Authorization': `Bearer ${DOUBAO_API_KEY}`
     },
     body: JSON.stringify({
-      model: 'wanx-v1',
-      input: {
-        prompt: prompt
-      },
-      parameters: {
-        style: '<flat illustration>',
-        size: '1024*1024',
-        n: 1
-      }
+      model: 'doubao-seedream-4-0-250828',
+      prompt: prompt,
+      sequential_image_generation: 'disabled',
+      response_format: 'url',
+      size: '2K',
+      stream: false,
+      watermark: true
     })
   });
 
-  const createData = await createResponse.json();
+  const data = await response.json();
   
-  if (!createData.output?.task_id) {
-    console.error('Failed to create image task:', createData);
-    return '';
+  if (data.data && data.data[0] && data.data[0].url) {
+    return data.data[0].url;
   }
   
-  const imageUrl = await waitForTaskComplete(createData.output.task_id);
-  return imageUrl;
+  console.error('Image generation failed:', data);
+  return '';
 }
